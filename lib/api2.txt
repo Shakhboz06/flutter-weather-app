@@ -1,0 +1,317 @@
+import 'dart:convert';
+import 'dart:ui';
+
+import 'package:flutter/cupertino.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:intl/intl.dart';
+import 'package:weatherapp/additional_info_item.dart';
+import 'package:weatherapp/hourly_forcast_item.dart';
+import 'package:http/http.dart' as http;
+import 'package:weatherapp/location.dart';
+import 'package:weatherapp/secrets.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_geocoder/geocoder.dart';
+
+class weather_screen extends StatefulWidget {
+  const weather_screen({super.key});
+
+  @override
+  State<weather_screen> createState() => _weather_screenState();
+}
+
+class _weather_screenState extends State<weather_screen> {
+  Future<Map<String, dynamic>> getCurrentWeather() async {
+    String location;
+
+    Position? position;
+
+    // Request location permissions
+    PermissionStatus permission = await Permission.locationWhenInUse.request();
+
+    if (permission.isGranted) {
+      // If permission is granted, get the current position
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+      } catch (e) {
+        throw Exception('Failed to get location: $e');
+      }
+    } else {
+      // If permission is denied, handle the error (e.g., show an error message)
+      throw Exception('Location permission denied');
+    }
+
+    if (position == null) {
+      throw Exception('Failed to get position');
+    }
+
+    // Reverse geocoding to get the city name
+    location = 'Lat: ${position.latitude} , Long: ${position.longitude}';
+    String lat = position.latitude.toString();
+    String lon = position.longitude.toString();
+
+    // location = 'Lat: ${position.latitude} , Long: ${position.longitude}';
+    try {
+      // String cityName = "potsdam";
+      // String countryName = "germany";
+
+      final result = await http.get(
+        Uri.parse(
+            // 'https://api.openweathermap.org/data/2.5/forecast?q=$cityName,$countryName&APPID=$openWeatherMapApiKey&units=metric'),
+            'https://api.openweathermap.org/data/3.0/onecall?lat=$lat&lon=$lon&exclude=minutely&appid=$openWeatherMapApiKey&units=metric'),
+        // 'https://api.openweathermap.org/data/2.5/forecast?q=Potsdam,germany&APPID=f86990e43cb1a9650db1242393d82914&units=metric'),
+        // 'https://api.openweathermap.org/data/3.0/onecall?lat=28.26689000&lon=83.96851000&exclude=minutely&appid=1c7b480470882d69f8ebd79f7f8cfe54&units=metric'),
+      );
+      final data = jsonDecode(result.body);
+      // if (data['cod'] != '200') {
+      //   throw data['message'];
+      // }
+      print('opened');
+      print(position);
+
+      return data;
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: false,
+        appBar: AppBar(
+          backgroundColor: Color(0xFF3C95C1),
+          title: const Text(
+            "Weather App",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              onPressed: () {
+                print('Pressed');
+              },
+              icon: Icon(Icons.menu),
+            ),
+          ],
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: Image.asset('images/wepp blue bg.jpg').image,
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: FutureBuilder(
+              future: getCurrentWeather(),
+              builder: (context, snapshot) {
+                print(snapshot);
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(
+                    color: Colors.white,
+                  ));
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('${snapshot.error}'));
+                }
+
+                final data = snapshot.data!;
+
+                final currentTemp = data['current']['temp'].round();
+                final currentSky = data['current']['weather'][0]['main'];
+                // // var forecastTime = data['list'][0]['dt_txt'];
+                // // forecastTime =
+                // //     DateTime.parse(forecastTime).timeZoneOffset.toString();
+                final humidity = data['hourly'][0]['humidity'];
+                final windSpeed =
+                    data['hourly'][0]['weather'][0]['wind_speed'].toString();
+                // // final currentSky = data['timezone'];
+                // final location = Address;
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          DateFormat.jm().format(DateTime.now()),
+                          style: const TextStyle(
+                              fontSize: 20.0,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.white),
+                        ),
+                      ),
+
+                      // MainCard()
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card(
+                          margin: EdgeInsets.fromLTRB(0, 50, 0, 0),
+                          color: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0)),
+                          child: ClipRRect(
+                            child: BackdropFilter(
+                              filter:
+                                  ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '$currentTemp °C',
+                                      style: const TextStyle(
+                                          fontSize: 28.0,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.orange),
+                                    ),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    Image.asset(
+                                      getImageForWeather(data['current']
+                                          ['weather'][0]['icon']),
+                                      scale: 7.0,
+                                    ),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    Text(
+                                      currentSky,
+                                      style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black),
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Hourly Forecast',
+                          style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      //for this 15:51:00
+
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (int i = 0; i < 10; i++)
+                              hourly_forcast_item(
+                                  time:
+                                      getFormattedTime(data['hourly'][i]['dt']),
+
+                                  // (data['hourly'][i]['dt']),
+                                  temp: data['hourly'][i]['temp']
+                                      .round()
+                                      .toString(),
+                                  image: getImageForWeather(
+                                      data['hourly'][i]['weather'][0]['icon'])),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Additional Information',
+                          style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          additional_info_item(
+                            icon: (Icons.water_drop),
+                            text: 'Humidity',
+                            value: humidity.toString(),
+                          ),
+                          additional_info_item(
+                            icon: Icons.wind_power,
+                            text: 'Wind Speed',
+                            value: windSpeed + 'km/h',
+                          ),
+                          const additional_info_item(
+                            icon: Icons.light_mode_outlined,
+                            text: 'UV Index',
+                            value: 'low',
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          additional_info(
+                            image: 'images/11.png',
+                            value:
+                                getSunFormattedTime(data['current']['sunrise'])
+                                    .toString(),
+                            text: 'SunRise',
+                          ),
+                          additional_info(
+                            image: 'images/12.png',
+                            value:
+                                getSunFormattedTime(data['current']['sunset'])
+                                    .toString(),
+                            text: 'SunSet',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String getFormattedTime(int timestamp) {
+  DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+  return DateFormat('MMMM-dd HH:00').format(dateTime);
+}
+
+String getSunFormattedTime(int timestamp) {
+  DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+  return DateFormat('HH:mm').format(dateTime);
+}
+// 15:56:00
+// Icon change assording to apidata 15:22:00

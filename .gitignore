@@ -1,0 +1,43 @@
+# Flutter specific
+.dart_tool/
+.build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+.env
+
+# Web specific
+web/.dart_tool/
+web/.packages
+
+# Android specific
+**/android/local.properties
+**/android/key.properties
+
+# iOS specific
+**/ios/Flutter/.last_build_id
+**/ios/.generated/
+**/ios/Pods/
+**/ios/Podfile.lock
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+
+# Visual Studio Code
+.vscode/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Build outputs
+build/
+flutter_build/
+
+# Coverage
+coverage/
+
+# Generated files
+generated_plugin_registrant.dart
+*.flutter-plugins-dependencies
